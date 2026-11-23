@@ -98,7 +98,8 @@
     <!-- Vỏ thân màu vàng -->
     <xacro:rounded_box name="shell" l="${body_l}" w="${body_w}" h="${body_h}" r="${body_r}" z="0" mat="sorter_yellow"/>
     <!-- Cản va cao su quanh mép dưới -->
-    <xacro:rounded_box name="bumper" l="${body_l + 0.008}" w="${body_w + 0.008}" h="0.035"
+    <!-- đáy cản va thấp hơn đáy vỏ 0.5 mm để hai mặt không trùng nhau khi hiển thị -->
+    <xacro:rounded_box name="bumper" l="${body_l + 0.008}" w="${body_w + 0.008}" h="0.036"
                        r="${body_r + 0.004}" z="${-top + 0.0175}" mat="amr_rubber"/>
     <!-- Nắp trên màu tối -->
     <xacro:rounded_box name="cover" l="${body_l - 0.02}" w="${body_w - 0.02}" h="0.004"
@@ -274,12 +275,12 @@
     </visual>
     <visual name="lip_front">
       <origin xyz="${tray_l / 2.0 - lip_t / 2.0} 0 ${tray_gap + lip_h / 2.0}" rpy="0 0 0"/>
-      <geometry><box size="${lip_t} ${tray_w} ${lip_h}"/></geometry>
+      <geometry><box size="${lip_t + 0.002} ${tray_w + 0.002} ${lip_h}"/></geometry>
       <material name="sorter_yellow"/>
     </visual>
     <visual name="lip_rear">
       <origin xyz="${-(tray_l / 2.0 - lip_t / 2.0)} 0 ${tray_gap + lip_h / 2.0}" rpy="0 0 0"/>
-      <geometry><box size="${lip_t} ${tray_w} ${lip_h}"/></geometry>
+      <geometry><box size="${lip_t + 0.002} ${tray_w + 0.002} ${lip_h}"/></geometry>
       <material name="sorter_yellow"/>
     </visual>
     <visual name="tray_lug_front">
