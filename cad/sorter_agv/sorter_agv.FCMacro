@@ -1,0 +1,190 @@
+# -*- coding: utf-8 -*-
+"""Dựng robot AGV chia chọn khay lật (sorter_agv) trong FreeCAD.
+
+Cách chạy: FreeCAD → Macro → Macros... → chọn file này → Execute.
+Dùng được với FreeCAD 0.21 và 1.0.
+
+Quy ước (giống file URDF sorter_agv.urdf.xacro):
+    - Đơn vị mm.
+    - Gốc toạ độ ở tâm robot trên mặt sàn.
+    - X hướng về phía trước, Y sang trái, Z hướng lên.
+
+Mỗi chi tiết được tạo đúng như khi thao tác tay trong hướng dẫn HUONG_DAN_FREECAD.md:
+khối hộp (Part Box), trụ (Part Cylinder), cầu (Part Sphere), bo góc (Part Fillet),
+khoét lỗ (Part Cut). Kết quả gồm 3 nhóm (App::Part):
+    Robot
+    ├── Than_xe   (phần đứng yên)
+    └── Khay_lat  (phần lật quanh trục X, tâm quay (0, 0, 265))
+
+Sau khi chạy, có thể lật khay ngay trong Python console của FreeCAD:
+    dat_goc_lat(30)    # đổ hàng sang PHẢI
+    dat_goc_lat(-30)   # đổ hàng sang TRÁI
+    dat_goc_lat(0)     # khay nằm ngang
+"""
+
+import FreeCAD as App
+import Part  # noqa: F401  (nạp workbench Part cho Part::Box, Part::Fillet...)
+
+GOC_LAT = 0.0                          # độ, trong khoảng [-30, 30]
+TAM_LAT = App.Vector(0, 0, 265)        # tâm trục lật
+
+# Màu (R, G, B) từ 0 đến 1, giống màu trong URDF
+VANG = (1.00, 0.78, 0.00)
+CAO_SU = (0.12, 0.12, 0.12)
+XAM_TOI = (0.25, 0.25, 0.27)
+NHOM = (0.72, 0.74, 0.78)
+INOX = (0.88, 0.88, 0.90)
+DEN = (0.08, 0.08, 0.08)
+TRANG = (0.92, 0.92, 0.92)
+LED = (0.00, 0.80, 1.00)
+DO = (0.85, 0.05, 0.05)
+DONG = (0.85, 0.58, 0.20)
+
+doc = App.newDocument("sorter_agv")
+
+
+def _mau(obj, rgb):
+    if App.GuiUp and rgb is not None:
+        obj.ViewObject.ShapeColor = rgb
+
+
+def _an(obj):
+    if App.GuiUp:
+        obj.ViewObject.Visibility = False
+
+
+def hop(nhom, ten, dai, rong, cao, x, y, z, rgb):
+    """Part Box: dai theo X, rong theo Y, cao theo Z; (x, y, z) là GÓC nhỏ nhất của hộp."""
+    o = doc.addObject("Part::Box", ten)
+    o.Length, o.Width, o.Height = dai, rong, cao
+    o.Placement.Base = App.Vector(x, y, z)
+    nhom.addObject(o)
+    _mau(o, rgb)
+    return o
+
+
+# Hướng trục của Part Cylinder (mặc định dọc +Z) → xoay bằng Placement
+HUONG = {
+    "Z": App.Rotation(),                          # không xoay
+    "X": App.Rotation(App.Vector(0, 1, 0), 90),   # trục Y, góc 90°  → dọc +X
+    "Y": App.Rotation(App.Vector(1, 0, 0), -90),  # trục X, góc -90° → dọc +Y
+}
+
+
+def tru(nhom, ten, ban_kinh, dai, x, y, z, huong, rgb):
+    """Part Cylinder: (x, y, z) là TÂM MẶT ĐÁY, trụ kéo dài theo hướng +huong."""
+    o = doc.addObject("Part::Cylinder", ten)
+    o.Radius, o.Height = ban_kinh, dai
+    o.Placement = App.Placement(App.Vector(x, y, z), HUONG[huong])
+    nhom.addObject(o)
+    _mau(o, rgb)
+    return o
+
+
+def cau(nhom, ten, ban_kinh, x, y, z, rgb):
+    """Part Sphere: (x, y, z) là TÂM cầu."""
+    o = doc.addObject("Part::Sphere", ten)
+    o.Radius = ban_kinh
+    o.Placement.Base = App.Vector(x, y, z)
+    nhom.addObject(o)
+    _mau(o, rgb)
+    return o
+
+
+def hop_bo_goc(nhom, ten, dai, rong, cao, r, z, rgb):
+    """Hộp đặt giữa tâm XY rồi bo tròn 4 cạnh đứng bán kính r (Part Fillet)."""
+    goc = hop(nhom, ten + "_hop", dai, rong, cao, -dai / 2, -rong / 2, z, None)
+    doc.recompute()
+    canh_dung = [i + 1 for i, e in enumerate(goc.Shape.Edges)
+                 if abs(e.Vertexes[0].Point.z - e.Vertexes[1].Point.z) > 1e-6]
+    f = doc.addObject("Part::Fillet", ten)
+    f.Base = goc
+    f.Edges = [(i, r, r) for i in canh_dung]
+    nhom.addObject(f)
+    _an(goc)
+    _mau(f, rgb)
+    return f
+
+
+def khoet(nhom, ten, khoi, dao, rgb):
+    """Part Cut: khoi trừ dao."""
+    c = doc.addObject("Part::Cut", ten)
+    c.Base, c.Tool = khoi, dao
+    nhom.addObject(c)
+    _an(khoi)
+    _an(dao)
+    _mau(c, rgb)
+    return c
+
+
+robot = doc.addObject("App::Part", "Robot")
+than = doc.addObject("App::Part", "Than_xe")
+khay = doc.addObject("App::Part", "Khay_lat")
+robot.addObject(than)
+robot.addObject(khay)
+
+# ---------- Bước 1–3: thân (cản va, vỏ, nắp) ----------
+hop_bo_goc(than, "Can_va", 568, 468, 35, 64, 25, CAO_SU)     # z 25 → 60
+hop_bo_goc(than, "Vo_than", 560, 460, 105, 60, 60, VANG)     # z 60 → 165
+hop_bo_goc(than, "Nap", 540, 440, 4, 50, 165, XAM_TOI)       # z 165 → 169
+
+# ---------- Bước 4: bánh chủ động Ø100 × 35, cách nhau 360 ----------
+tru(than, "Banh_trai", 50, 35, 0, 162.5, 50, "Y", CAO_SU)
+tru(than, "Banh_phai", 50, 35, 0, -197.5, 50, "Y", CAO_SU)
+tru(than, "May_banh_trai", 25, 37, 0, 161.5, 50, "Y", NHOM)
+tru(than, "May_banh_phai", 25, 37, 0, -198.5, 50, "Y", NHOM)
+
+# ---------- Bước 5: 4 bi tự lựa Ø40 ----------
+cau(than, "Bi_truoc_trai", 20, 210, 160, 21, NHOM)
+cau(than, "Bi_truoc_phai", 20, 210, -160, 21, NHOM)
+cau(than, "Bi_sau_trai", 20, -210, 160, 21, NHOM)
+cau(than, "Bi_sau_phai", 20, -210, -160, 21, NHOM)
+
+# ---------- Bước 6: camera đọc mã QR dưới đáy ----------
+tru(than, "Camera_QR", 18, 6, 0, 0, 19, "Z", DEN)
+tru(than, "Vong_den_QR", 30, 4, 0, 0, 21, "Z", TRANG)
+
+# ---------- Bước 7: hộp cơ cấu + động cơ ----------
+hop(than, "Hop_co_cau", 400, 80, 71, -200, -40, 169, XAM_TOI)  # z 169 → 240
+tru(than, "Dong_co", 25, 50, 200, 0, 202.5, "X", NHOM)
+
+# ---------- Bước 8: tai đỡ + trục lật ----------
+hop(than, "Tai_do_truoc", 12, 30, 35, 184, -15, 235, NHOM)
+hop(than, "Tai_do_sau", 12, 30, 35, -196, -15, 235, NHOM)
+tru(than, "Truc_lat", 8, 420, -210, 0, 265, "X", INOX)
+
+# ---------- Bước 9: phụ kiện ----------
+hop(than, "LED_truoc", 4, 300, 12, 280, -150, 134, LED)
+hop(than, "LED_sau", 4, 240, 12, -284, -150, 134, LED)
+hop(than, "Cua_so_cam_bien", 4, 100, 25, 280, -50, 87.5, DEN)
+tru(than, "Nut_dung_khan", 15, 12, -292, 160, 140, "X", DO)
+hop(than, "Tiep_diem_sac_trai", 6, 60, 20, -286, 50, 65, DONG)
+hop(than, "Tiep_diem_sac_phai", 6, 60, 20, -286, -110, 65, DONG)
+
+# ---------- Bước 10: khay lật ----------
+hop(khay, "Mat_khay", 480, 360, 15, -240, -180, 273, XAM_TOI)  # z 273 → 288
+hop(khay, "Go_chan_truoc", 17, 362, 35, 224, -181, 273, VANG)
+hop(khay, "Go_chan_sau", 17, 362, 35, -241, -181, 273, VANG)
+tai_t = hop(khay, "Tai_khay_truoc_khoi", 12, 30, 24, 154, -15, 249, None)
+lo_t = tru(khay, "Lo_truoc", 8.5, 40, 140, 0, 265, "X", None)
+khoet(khay, "Tai_khay_truoc", tai_t, lo_t, NHOM)
+tai_s = hop(khay, "Tai_khay_sau_khoi", 12, 30, 24, -166, -15, 249, None)
+lo_s = tru(khay, "Lo_sau", 8.5, 40, -180, 0, 265, "X", None)
+khoet(khay, "Tai_khay_sau", tai_s, lo_s, NHOM)
+
+
+# ---------- Bước 12: lật khay ----------
+def dat_goc_lat(goc):
+    """Lật khay quanh trục X qua tâm (0, 0, 265). Dương = đổ sang phải."""
+    goc = max(-30.0, min(30.0, float(goc)))
+    khay.Placement = App.Placement(App.Vector(0, 0, 0),
+                                   App.Rotation(App.Vector(1, 0, 0), goc), TAM_LAT)
+    doc.recompute()
+
+
+dat_goc_lat(GOC_LAT)
+
+if App.GuiUp:
+    import FreeCADGui as Gui
+    Gui.activeDocument().activeView().viewIsometric()
+    Gui.SendMsgToActiveView("ViewFit")

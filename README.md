@@ -175,6 +175,9 @@ ros2 run amr_gazebo amr_cmd.py tray flat
 | Phụ kiện | Dải LED trạng thái trước/sau, cửa sổ cảm biến chống va phía trước, nút dừng khẩn và tiếp điểm sạc phía sau |
 | Khối lượng | ≈ 18 kg (thân 14.45 + bánh 2×0.8 + bi 4×0.1 + camera 0.05 + khay 1.5) |
 
+Vẽ lại robot này trong FreeCAD từng bước: xem [`cad/sorter_agv/HUONG_DAN_FREECAD.md`](cad/sorter_agv/HUONG_DAN_FREECAD.md)
+(kèm macro dựng tự động `cad/sorter_agv/sorter_agv.FCMacro`).
+
 Topic: `/cmd_vel`, `/odom`, `/tf`, `/joint_states`, `/tray_tilt_cmd` (`std_msgs/Float64`, rad).
 Góc dương nâng cạnh trái nên hàng đổ sang **phải**; `amr_cmd.py tray left|right` đã đổi dấu sẵn.
 Mặt khay có µ = 0.3, nên khi lật 30° (tan 30° ≈ 0.58) bưu phẩm trượt xuống, còn khi chạy với gia tốc
