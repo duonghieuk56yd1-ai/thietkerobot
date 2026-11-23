@@ -182,3 +182,11 @@ Topic: `/cmd_vel`, `/odom`, `/tf`, `/joint_states`, `/tray_tilt_cmd` (`std_msgs/
 Góc dương nâng cạnh trái nên hàng đổ sang **phải**; `amr_cmd.py tray left|right` đã đổi dấu sẵn.
 Mặt khay có µ = 0.3, nên khi lật 30° (tan 30° ≈ 0.58) bưu phẩm trượt xuống, còn khi chạy với gia tốc
 1 m/s² thì hàng vẫn nằm yên.
+
+---
+
+## Thí nghiệm sai số Odometry ESP32 (micro-ROS) vs Gazebo
+
+Thư mục [`odom_experiment/`](odom_experiment/README.md): firmware ESP32 PlatformIO (`esp32_platformio/`)
+và script Python ROS 2 Humble (`odom_exp/monitor_error.py`, `odom_exp/nav_waypoints.py`).
+Xem hướng dẫn chạy 5 terminal trong [`odom_experiment/README.md`](odom_experiment/README.md).

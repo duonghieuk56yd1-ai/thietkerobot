@@ -3,3 +3,6 @@ ros2_ws/install/
 ros2_ws/log/
 __pycache__/
 *.pyc
+.pio/
+odom_experiment/odom_exp/*.csv
+odom_experiment/odom_exp/*.png
