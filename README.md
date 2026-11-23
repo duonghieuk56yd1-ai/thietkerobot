@@ -136,3 +136,11 @@ Ngoài ra `/clock` được bridge để mọi node dùng `use_sim_time`.
 - Màu sắc lấy từ `<material>` trong URDF, hiển thị trên cả RViz2 và Gazebo.
 - Khi chạy world trực tiếp bằng `gz sim` (không qua launch), cần thêm
   `amr_gazebo/models` vào `GZ_SIM_RESOURCE_PATH`.
+
+---
+
+## Thí nghiệm sai số Odometry ESP32 (micro-ROS) vs Gazebo
+
+Thư mục [`odom_experiment/`](odom_experiment/README.md): firmware ESP32 PlatformIO (`esp32_platformio/`)
+và script Python ROS 2 Humble (`odom_exp/monitor_error.py`, `odom_exp/nav_waypoints.py`).
+Xem hướng dẫn chạy 5 terminal trong [`odom_experiment/README.md`](odom_experiment/README.md).
