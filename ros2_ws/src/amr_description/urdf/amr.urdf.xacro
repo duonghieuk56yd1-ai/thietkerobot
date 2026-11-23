@@ -1,0 +1,423 @@
+<?xml version="1.0"?>
+<!--
+  AMR vận chuyển hàng trong kho: đế Differential Drive + cơ cấu nâng 4 trụ + khay băng tải.
+
+  Quy ước khung toạ độ (REP-103/REP-105):
+    base_footprint : hình chiếu tâm robot trên mặt sàn (z = 0)
+    base_link      : tâm hình học thân đế (z = 0.17 m so với sàn)
+    laser_frame    : mặt phẳng quét LiDAR (z = 0.32 m so với sàn)
+  Trục x hướng về phía trước (phía có mảng tiếp điểm sạc và mũi tên).
+
+  Mô-đun 1 - Đế di chuyển (~23 kg):
+    thân 18.4 + 2 bánh chủ động 2×1.5 + 2 bánh tự lựa 2×0.3 + LiDAR 0.9 + IMU 0.1 = 23.0 kg
+  Mô-đun 2 - Cơ cấu nâng & băng tải (~7 kg):
+    4 xi lanh 4×0.3 + 4 cần piston 4×0.25 + khay 4.0 + mặt băng 0.8 = 7.0 kg
+-->
+<robot name="amr" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:arg name="use_gazebo" default="true"/>
+
+  <xacro:include filename="amr_macros.xacro"/>
+
+  <!-- ============================================================== -->
+  <!--                       THÔNG SỐ HÌNH HỌC                         -->
+  <!-- ============================================================== -->
+  <!-- Thân đế -->
+  <xacro:property name="base_radius"       value="0.30"/>
+  <xacro:property name="base_height"       value="0.22"/>
+  <xacro:property name="ground_clearance"  value="0.06"/>
+  <xacro:property name="base_z"            value="${ground_clearance + base_height / 2.0}"/>  <!-- 0.17 -->
+  <xacro:property name="base_top"          value="${base_height / 2.0}"/>                     <!-- +0.11 so với base_link (z = 0.28) -->
+  <xacro:property name="chassis_mass"      value="18.4"/>
+
+  <!-- Bánh chủ động (6.5 inch) -->
+  <xacro:property name="wheel_radius"      value="0.0825"/>
+  <xacro:property name="wheel_width"       value="0.04"/>
+  <xacro:property name="wheel_separation"  value="0.44"/>
+  <xacro:property name="wheel_mass"        value="1.5"/>
+
+  <!-- Bánh tự lựa: tâm cầu cao hơn bán kính 1 mm để tải trọng dồn lên 2 bánh chủ động
+       (tránh hệ siêu tĩnh 4 điểm tiếp xúc làm bánh chủ động mất bám) -->
+  <xacro:property name="caster_radius"     value="0.04"/>
+  <xacro:property name="caster_offset_x"   value="0.20"/>
+  <xacro:property name="caster_clearance"  value="0.001"/>
+  <xacro:property name="caster_mass"       value="0.3"/>
+
+  <!-- LiDAR -->
+  <xacro:property name="lidar_radius"      value="0.05"/>
+  <xacro:property name="lidar_height"      value="0.08"/>   <!-- thân LiDAR chiếm z = 0.28 .. 0.36 -->
+  <xacro:property name="laser_z"           value="0.32"/>
+  <xacro:property name="lidar_mass"        value="0.9"/>
+  <xacro:property name="imu_mass"          value="0.1"/>
+
+  <!-- Mảng tiếp điểm sạc phía trước: cao 0.08 – 0.16 m, rộng (dây cung) 0.40 m -->
+  <xacro:property name="charge_z_min"      value="0.08"/>
+  <xacro:property name="charge_z_max"      value="0.16"/>
+  <xacro:property name="charge_width"      value="0.40"/>
+  <xacro:property name="charge_thickness"  value="0.006"/>
+  <xacro:property name="charge_segments"   value="10"/>
+  <xacro:property name="charge_r"          value="${base_radius + charge_thickness / 2.0}"/>
+  <xacro:property name="charge_half_angle" value="${asin(charge_width / 2.0 / charge_r)}"/>
+  <xacro:property name="charge_dphi"       value="${2.0 * charge_half_angle / charge_segments}"/>
+  <xacro:property name="charge_seg_len"    value="${2.0 * charge_r * sin(charge_dphi / 2.0) + 0.002}"/>
+
+  <!-- Cơ cấu nâng -->
+  <xacro:property name="lift_xy"           value="0.18"/>
+  <xacro:property name="lift_stroke"       value="0.25"/>
+  <xacro:property name="lift_velocity"     value="0.1"/>
+  <xacro:property name="lift_effort"       value="1500.0"/>
+  <xacro:property name="barrel_radius"     value="0.03"/>
+  <xacro:property name="barrel_height"     value="0.08"/>
+  <xacro:property name="barrel_mass"       value="0.3"/>
+  <xacro:property name="rod_radius"        value="0.018"/>
+  <xacro:property name="rod_length"        value="0.30"/>
+  <xacro:property name="rod_mass"          value="0.25"/>
+
+  <!-- Khay băng tải -->
+  <xacro:property name="tray_top_low"      value="0.42"/>   <!-- mặt băng khi hạ (z so với sàn) -->
+  <xacro:property name="tray_size"         value="0.52"/>
+  <xacro:property name="tray_plate_t"      value="0.03"/>
+  <xacro:property name="tray_mass"         value="4.0"/>
+  <xacro:property name="belt_width"        value="0.44"/>
+  <xacro:property name="belt_length"       value="0.48"/>
+  <xacro:property name="belt_t"            value="0.01"/>
+  <xacro:property name="belt_mass"         value="0.8"/>
+  <xacro:property name="rail_width"        value="0.04"/>
+  <xacro:property name="rail_above_belt"   value="0.05"/>
+  <xacro:property name="rail_height"       value="${belt_t + rail_above_belt}"/>
+  <xacro:property name="roller_radius"     value="0.01"/>
+  <!-- Đáy khay (z so với sàn) khi hạ = 0.42 - 0.01 - 0.03 = 0.38 -->
+  <xacro:property name="tray_bottom_low"   value="${tray_top_low - belt_t - tray_plate_t}"/>
+
+  <!-- ============================================================== -->
+  <!--                MÔ-ĐUN 1 : ĐẾ DI CHUYỂN                          -->
+  <!-- ============================================================== -->
+  <link name="base_footprint"/>
+
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 ${base_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Dải tiếp điểm sạc: ghép từ các tấm phẳng nhỏ bám theo cung tròn mặt trước -->
+  <xacro:macro name="charging_contacts" params="i">
+    <xacro:if value="${i &lt; charge_segments}">
+      <visual name="charging_contact_${i}">
+        <origin xyz="${charge_r * cos(-charge_half_angle + charge_dphi * (i + 0.5))} ${charge_r * sin(-charge_half_angle + charge_dphi * (i + 0.5))} ${(charge_z_min + charge_z_max) / 2.0 - base_z}"
+                rpy="0 0 ${-charge_half_angle + charge_dphi * (i + 0.5)}"/>
+        <geometry><box size="${charge_thickness} ${charge_seg_len} ${charge_z_max - charge_z_min}"/></geometry>
+        <material name="amr_copper"/>
+      </visual>
+      <xacro:charging_contacts i="${i + 1}"/>
+    </xacro:if>
+  </xacro:macro>
+
+  <link name="base_link">
+    <!-- Thân trụ tròn Ø0.60 × 0.22 m -->
+    <visual name="chassis">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="${base_radius}" length="${base_height}"/></geometry>
+      <material name="amr_white"/>
+    </visual>
+    <!-- Vòng viền màu cam quanh mép trên -->
+    <visual name="top_ring">
+      <origin xyz="0 0 ${base_top - 0.0145}" rpy="0 0 0"/>
+      <geometry><cylinder radius="${base_radius + 0.004}" length="0.025"/></geometry>
+      <material name="amr_orange"/>
+    </visual>
+    <!-- Mảng tiếp điểm sạc (vàng/đồng) ở mặt trước -->
+    <xacro:charging_contacts i="0"/>
+    <!-- Mũi tên chỉ hướng phía trước trên mặt nắp đế -->
+    <visual name="arrow_shaft">
+      <origin xyz="0.185 0 ${base_top + 0.0015}" rpy="0 0 0"/>
+      <geometry><box size="0.09 0.03 0.003"/></geometry>
+      <material name="amr_orange"/>
+    </visual>
+    <visual name="arrow_head_0">
+      <origin xyz="0.2375 0 ${base_top + 0.0015}" rpy="0 0 0"/>
+      <geometry><box size="0.015 0.075 0.003"/></geometry>
+      <material name="amr_orange"/>
+    </visual>
+    <visual name="arrow_head_1">
+      <origin xyz="0.2525 0 ${base_top + 0.0015}" rpy="0 0 0"/>
+      <geometry><box size="0.015 0.055 0.003"/></geometry>
+      <material name="amr_orange"/>
+    </visual>
+    <visual name="arrow_head_2">
+      <origin xyz="0.2675 0 ${base_top + 0.0015}" rpy="0 0 0"/>
+      <geometry><box size="0.015 0.035 0.003"/></geometry>
+      <material name="amr_orange"/>
+    </visual>
+    <visual name="arrow_head_3">
+      <origin xyz="0.2815 0 ${base_top + 0.0015}" rpy="0 0 0"/>
+      <geometry><box size="0.013 0.015 0.003"/></geometry>
+      <material name="amr_orange"/>
+    </visual>
+
+    <collision name="chassis_collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="${base_radius}" length="${base_height}"/></geometry>
+    </collision>
+
+    <xacro:inertial_cylinder mass="${chassis_mass}" radius="${base_radius}" length="${base_height}">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:inertial_cylinder>
+  </link>
+
+  <!-- ~~~~~~~~~~ Bánh chủ động ~~~~~~~~~~ -->
+  <xacro:macro name="drive_wheel" params="side y_sign">
+    <link name="${side}_wheel_link">
+      <visual name="tire">
+        <origin xyz="0 0 0" rpy="${pi / 2.0} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+        <material name="amr_rubber"/>
+      </visual>
+      <visual name="hub">
+        <origin xyz="0 ${y_sign * 0.001} 0" rpy="${pi / 2.0} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius * 0.55}" length="${wheel_width + 0.002}"/></geometry>
+        <material name="amr_alu"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${pi / 2.0} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+      </collision>
+      <xacro:inertial_cylinder mass="${wheel_mass}" radius="${wheel_radius}" length="${wheel_width}">
+        <origin xyz="0 0 0" rpy="${pi / 2.0} 0 0"/>
+      </xacro:inertial_cylinder>
+    </link>
+
+    <joint name="${side}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${side}_wheel_link"/>
+      <origin xyz="0 ${y_sign * wheel_separation / 2.0} ${wheel_radius - base_z}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="20.0" velocity="10.0"/>
+      <dynamics damping="0.01" friction="0.0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:drive_wheel side="left"  y_sign="1"/>
+  <xacro:drive_wheel side="right" y_sign="-1"/>
+
+  <!-- ~~~~~~~~~~ Bánh tự lựa ~~~~~~~~~~ -->
+  <xacro:macro name="caster_wheel" params="name x_sign">
+    <link name="caster_${name}_link">
+      <visual name="ball">
+        <geometry><sphere radius="${caster_radius}"/></geometry>
+        <material name="amr_dark"/>
+      </visual>
+      <!-- Vỏ gá bánh tự lựa (nối từ đáy thân xuống) -->
+      <visual name="housing">
+        <origin xyz="0 0 ${ground_clearance - (caster_radius + caster_clearance) + 0.005}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${caster_radius + 0.008}" length="0.02"/></geometry>
+        <material name="amr_alu"/>
+      </visual>
+      <collision>
+        <geometry><sphere radius="${caster_radius}"/></geometry>
+      </collision>
+      <xacro:inertial_sphere mass="${caster_mass}" radius="${caster_radius}">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+      </xacro:inertial_sphere>
+    </link>
+
+    <joint name="caster_${name}_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="caster_${name}_link"/>
+      <origin xyz="${x_sign * caster_offset_x} 0 ${caster_radius + caster_clearance - base_z}" rpy="0 0 0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:caster_wheel name="front" x_sign="1"/>
+  <xacro:caster_wheel name="rear"  x_sign="-1"/>
+
+  <!-- ~~~~~~~~~~ LiDAR 360° ~~~~~~~~~~ -->
+  <!-- Thân trụ Ø0.10 × 0.08 m đặt giữa tâm nắp đế (z 0.28 → 0.36), tâm quét z = 0.32,
+       nằm gọn trong khe hở giữa nắp đế (0.28) và đáy khay nâng (0.38). -->
+  <link name="laser_frame">
+    <visual name="housing">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="${lidar_radius}" length="${lidar_height}"/></geometry>
+      <material name="amr_dark"/>
+    </visual>
+    <visual name="window">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="${lidar_radius + 0.001}" length="0.02"/></geometry>
+      <material name="amr_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="${lidar_radius}" length="${lidar_height}"/></geometry>
+    </collision>
+    <xacro:inertial_cylinder mass="${lidar_mass}" radius="${lidar_radius}" length="${lidar_height}">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:inertial_cylinder>
+  </link>
+
+  <joint name="laser_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="laser_frame"/>
+    <origin xyz="0 0 ${laser_z - base_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ~~~~~~~~~~ IMU 9 trục ~~~~~~~~~~ -->
+  <link name="imu_link">
+    <visual>
+      <geometry><box size="0.04 0.04 0.01"/></geometry>
+      <material name="amr_black"/>
+    </visual>
+    <xacro:inertial_box mass="${imu_mass}" x="0.04" y="0.04" z="0.01">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:inertial_box>
+  </link>
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ============================================================== -->
+  <!--          MÔ-ĐUN 2 : CƠ CẤU NÂNG & BĂNG TẢI THÁO DỠ              -->
+  <!-- ============================================================== -->
+  <!-- Mỗi trụ nâng = xi lanh cố định trên nắp đế + cần piston trượt (prismatic).
+       Khớp prismatic đặt tại đỉnh cần piston, trùng mặt đáy khay (z = 0.38 khi hạ). -->
+  <xacro:macro name="lift_column" params="pos x_sign y_sign">
+    <!-- Xi lanh (cố định) -->
+    <link name="lift_${pos}_cylinder_link">
+      <visual>
+        <origin xyz="0 0 ${barrel_height / 2.0}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${barrel_radius}" length="${barrel_height}"/></geometry>
+        <material name="amr_alu"/>
+      </visual>
+      <xacro:inertial_cylinder mass="${barrel_mass}" radius="${barrel_radius}" length="${barrel_height}">
+        <origin xyz="0 0 ${barrel_height / 2.0}" rpy="0 0 0"/>
+      </xacro:inertial_cylinder>
+    </link>
+
+    <joint name="lift_${pos}_cylinder_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="lift_${pos}_cylinder_link"/>
+      <origin xyz="${x_sign * lift_xy} ${y_sign * lift_xy} ${base_top}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Cần piston (di động). Dài 0.30 m: khi nâng hết 0.25 m vẫn còn 3 cm nằm trong xi lanh. -->
+    <link name="lift_${pos}_link">
+      <visual name="rod">
+        <origin xyz="0 0 ${-rod_length / 2.0}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${rod_radius}" length="${rod_length}"/></geometry>
+        <material name="amr_chrome"/>
+      </visual>
+      <visual name="flange">
+        <origin xyz="0 0 -0.005" rpy="0 0 0"/>
+        <geometry><cylinder radius="${barrel_radius}" length="0.01"/></geometry>
+        <material name="amr_dark"/>
+      </visual>
+      <xacro:inertial_cylinder mass="${rod_mass}" radius="${rod_radius}" length="${rod_length}">
+        <origin xyz="0 0 ${-rod_length / 2.0}" rpy="0 0 0"/>
+      </xacro:inertial_cylinder>
+    </link>
+
+    <joint name="lift_${pos}_joint" type="prismatic">
+      <parent link="base_link"/>
+      <child link="lift_${pos}_link"/>
+      <origin xyz="${x_sign * lift_xy} ${y_sign * lift_xy} ${tray_bottom_low - base_z}" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="0.0" upper="${lift_stroke}" effort="${lift_effort}" velocity="${lift_velocity}"/>
+      <dynamics damping="1.0" friction="0.0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:lift_column pos="fl" x_sign="1"  y_sign="1"/>
+  <xacro:lift_column pos="fr" x_sign="1"  y_sign="-1"/>
+  <xacro:lift_column pos="rl" x_sign="-1" y_sign="1"/>
+  <xacro:lift_column pos="rr" x_sign="-1" y_sign="-1"/>
+
+  <!-- ~~~~~~~~~~ Khay băng tải ~~~~~~~~~~ -->
+  <!-- URDF chỉ cho phép cấu trúc cây nên khay được gắn cứng vào trụ trước-trái (lift_fl_link);
+       3 trụ còn lại được điều khiển đồng bộ cùng lệnh /lift_cmd nên luôn đỡ khay cùng độ cao. -->
+  <link name="lift_tray_link">
+    <!-- Tấm khay 0.52 × 0.52 m -->
+    <visual name="plate">
+      <origin xyz="0 0 ${tray_plate_t / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${tray_size} ${tray_size} ${tray_plate_t}"/></geometry>
+      <material name="amr_dark"/>
+    </visual>
+    <!-- 2 thanh gờ chặn hai bên, cao 0.05 m so với mặt băng -->
+    <visual name="rail_left">
+      <origin xyz="0 ${tray_size / 2.0 - rail_width / 2.0} ${tray_plate_t + rail_height / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${tray_size} ${rail_width} ${rail_height}"/></geometry>
+      <material name="amr_orange"/>
+    </visual>
+    <visual name="rail_right">
+      <origin xyz="0 ${-(tray_size / 2.0 - rail_width / 2.0)} ${tray_plate_t + rail_height / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${tray_size} ${rail_width} ${rail_height}"/></geometry>
+      <material name="amr_orange"/>
+    </visual>
+    <!-- Con lăn đầu/cuối băng tải -->
+    <visual name="roller_front">
+      <origin xyz="${tray_size / 2.0 - roller_radius} 0 ${tray_plate_t}" rpy="${pi / 2.0} 0 0"/>
+      <geometry><cylinder radius="${roller_radius}" length="${belt_width}"/></geometry>
+      <material name="amr_alu"/>
+    </visual>
+    <visual name="roller_rear">
+      <origin xyz="${-(tray_size / 2.0 - roller_radius)} 0 ${tray_plate_t}" rpy="${pi / 2.0} 0 0"/>
+      <geometry><cylinder radius="${roller_radius}" length="${belt_width}"/></geometry>
+      <material name="amr_alu"/>
+    </visual>
+
+    <collision name="plate_collision">
+      <origin xyz="0 0 ${tray_plate_t / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${tray_size} ${tray_size} ${tray_plate_t}"/></geometry>
+    </collision>
+    <collision name="rail_left_collision">
+      <origin xyz="0 ${tray_size / 2.0 - rail_width / 2.0} ${tray_plate_t + rail_height / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${tray_size} ${rail_width} ${rail_height}"/></geometry>
+    </collision>
+    <collision name="rail_right_collision">
+      <origin xyz="0 ${-(tray_size / 2.0 - rail_width / 2.0)} ${tray_plate_t + rail_height / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${tray_size} ${rail_width} ${rail_height}"/></geometry>
+    </collision>
+
+    <xacro:inertial_box mass="${tray_mass}" x="${tray_size}" y="${tray_size}" z="${tray_plate_t + rail_height}">
+      <origin xyz="0 0 ${(tray_plate_t + rail_height) / 2.0}" rpy="0 0 0"/>
+    </xacro:inertial_box>
+  </link>
+
+  <joint name="lift_tray_joint" type="fixed">
+    <parent link="lift_fl_link"/>
+    <child link="lift_tray_link"/>
+    <origin xyz="${-lift_xy} ${-lift_xy} 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Mặt băng cao su rộng 0.44 m (mặt trên z = 0.42 khi hạ, 0.67 khi nâng).
+       Chiều chuyển động của băng là trục +x của link (tiến/lùi theo hướng robot). -->
+  <link name="conveyor_belt_link">
+    <visual>
+      <origin xyz="0 0 ${belt_t / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${belt_length} ${belt_width} ${belt_t}"/></geometry>
+      <material name="amr_rubber"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${belt_t / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${belt_length} ${belt_width} ${belt_t}"/></geometry>
+    </collision>
+    <xacro:inertial_box mass="${belt_mass}" x="${belt_length}" y="${belt_width}" z="${belt_t}">
+      <origin xyz="0 0 ${belt_t / 2.0}" rpy="0 0 0"/>
+    </xacro:inertial_box>
+  </link>
+
+  <joint name="conveyor_belt_joint" type="fixed">
+    <parent link="lift_tray_link"/>
+    <child link="conveyor_belt_link"/>
+    <origin xyz="0 0 ${tray_plate_t}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ============================================================== -->
+  <!--                    PLUGIN & CẢM BIẾN GAZEBO                     -->
+  <!-- ============================================================== -->
+  <xacro:if value="$(arg use_gazebo)">
+    <xacro:include filename="amr.gazebo.xacro"/>
+  </xacro:if>
+
+</robot>

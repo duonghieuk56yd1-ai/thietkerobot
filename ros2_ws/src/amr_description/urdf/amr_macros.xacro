@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<!--
+  Macro dùng chung: tensor quán tính cho các khối hình học cơ bản và bảng màu.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ===================== Bảng màu (RViz2 + Gazebo) ===================== -->
+  <material name="amr_white">   <color rgba="0.92 0.92 0.92 1.0"/></material>
+  <material name="amr_orange">  <color rgba="1.00 0.45 0.00 1.0"/></material>
+  <material name="amr_copper">  <color rgba="0.85 0.58 0.20 1.0"/></material>
+  <material name="amr_black">   <color rgba="0.08 0.08 0.08 1.0"/></material>
+  <material name="amr_dark">    <color rgba="0.25 0.25 0.27 1.0"/></material>
+  <material name="amr_alu">     <color rgba="0.72 0.74 0.78 1.0"/></material>
+  <material name="amr_chrome">  <color rgba="0.88 0.88 0.90 1.0"/></material>
+  <material name="amr_rubber">  <color rgba="0.12 0.12 0.12 1.0"/></material>
+
+  <!-- ===================== Tensor quán tính ===================== -->
+  <!-- Trụ đặc, trục đối xứng là trục z của khung inertial -->
+  <xacro:macro name="inertial_cylinder" params="mass radius length *origin">
+    <inertial>
+      <xacro:insert_block name="origin"/>
+      <mass value="${mass}"/>
+      <inertia ixx="${mass * (3.0 * radius * radius + length * length) / 12.0}" ixy="0.0" ixz="0.0"
+               iyy="${mass * (3.0 * radius * radius + length * length) / 12.0}" iyz="0.0"
+               izz="${mass * radius * radius / 2.0}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- Hộp đặc kích thước x × y × z -->
+  <xacro:macro name="inertial_box" params="mass x y z *origin">
+    <inertial>
+      <xacro:insert_block name="origin"/>
+      <mass value="${mass}"/>
+      <inertia ixx="${mass * (y * y + z * z) / 12.0}" ixy="0.0" ixz="0.0"
+               iyy="${mass * (x * x + z * z) / 12.0}" iyz="0.0"
+               izz="${mass * (x * x + y * y) / 12.0}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- Cầu đặc -->
+  <xacro:macro name="inertial_sphere" params="mass radius *origin">
+    <inertial>
+      <xacro:insert_block name="origin"/>
+      <mass value="${mass}"/>
+      <inertia ixx="${2.0 * mass * radius * radius / 5.0}" ixy="0.0" ixz="0.0"
+               iyy="${2.0 * mass * radius * radius / 5.0}" iyz="0.0"
+               izz="${2.0 * mass * radius * radius / 5.0}"/>
+    </inertial>
+  </xacro:macro>
+
+</robot>

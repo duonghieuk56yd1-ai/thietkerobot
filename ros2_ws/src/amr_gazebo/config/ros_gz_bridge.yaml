@@ -1,0 +1,78 @@
+# Cầu nối ROS 2 <-> Gazebo Harmonic (ros_gz_bridge parameter_bridge)
+# Chiều GZ_TO_ROS: dữ liệu mô phỏng -> ROS 2 ; ROS_TO_GZ: lệnh điều khiển -> Gazebo
+
+# Đồng hồ mô phỏng
+- ros_topic_name: "/clock"
+  gz_topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS
+
+# DiffDrive: lệnh vận tốc
+- ros_topic_name: "/cmd_vel"
+  gz_topic_name: "/cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_type_name: "gz.msgs.Twist"
+  direction: ROS_TO_GZ
+
+# DiffDrive: odometry (50 Hz)
+- ros_topic_name: "/odom"
+  gz_topic_name: "/odom"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
+
+# DiffDrive: TF odom -> base_footprint (50 Hz)
+- ros_topic_name: "/tf"
+  gz_topic_name: "/tf"
+  ros_type_name: "tf2_msgs/msg/TFMessage"
+  gz_type_name: "gz.msgs.Pose_V"
+  direction: GZ_TO_ROS
+
+# JointStatePublisher: bánh xe + 4 trụ nâng
+- ros_topic_name: "/joint_states"
+  gz_topic_name: "/joint_states"
+  ros_type_name: "sensor_msgs/msg/JointState"
+  gz_type_name: "gz.msgs.Model"
+  direction: GZ_TO_ROS
+
+# gpu_lidar 360°
+- ros_topic_name: "/scan"
+  gz_topic_name: "/scan"
+  ros_type_name: "sensor_msgs/msg/LaserScan"
+  gz_type_name: "gz.msgs.LaserScan"
+  direction: GZ_TO_ROS
+
+# IMU: gia tốc kế + con quay + hướng
+- ros_topic_name: "/imu"
+  gz_topic_name: "/imu"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "gz.msgs.IMU"
+  direction: GZ_TO_ROS
+
+# IMU: từ kế 3 trục (hoàn thiện 9 trục)
+- ros_topic_name: "/imu/mag"
+  gz_topic_name: "/imu/mag"
+  ros_type_name: "sensor_msgs/msg/MagneticField"
+  gz_type_name: "gz.msgs.Magnetometer"
+  direction: GZ_TO_ROS
+
+# JointPositionController: vị trí trụ nâng [0.0, 0.25] m
+- ros_topic_name: "/lift_cmd"
+  gz_topic_name: "/lift_cmd"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
+
+# TrackController: vận tốc mặt băng tải [-0.3, 0.3] m/s
+- ros_topic_name: "/conveyor_cmd"
+  gz_topic_name: "/conveyor_cmd"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "/conveyor_odom"
+  gz_topic_name: "/conveyor_odom"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS

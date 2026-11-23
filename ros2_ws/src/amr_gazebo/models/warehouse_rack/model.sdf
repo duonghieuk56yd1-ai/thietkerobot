@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<!-- Giá kệ kho 2.0 × 0.6 × 2.0 m (tĩnh): 6 trụ đứng + 4 tầng kệ + vài thùng hàng -->
+<sdf version="1.9">
+  <model name="warehouse_rack">
+    <static>true</static>
+    <link name="link">
+      <!-- Trụ đứng (màu xanh) -->
+      <collision name="post_1"><pose>-0.96  0.26 1.0 0 0 0</pose><geometry><box><size>0.08 0.08 2.0</size></box></geometry></collision>
+      <collision name="post_2"><pose>-0.96 -0.26 1.0 0 0 0</pose><geometry><box><size>0.08 0.08 2.0</size></box></geometry></collision>
+      <collision name="post_3"><pose> 0.00  0.26 1.0 0 0 0</pose><geometry><box><size>0.08 0.08 2.0</size></box></geometry></collision>
+      <collision name="post_4"><pose> 0.00 -0.26 1.0 0 0 0</pose><geometry><box><size>0.08 0.08 2.0</size></box></geometry></collision>
+      <collision name="post_5"><pose> 0.96  0.26 1.0 0 0 0</pose><geometry><box><size>0.08 0.08 2.0</size></box></geometry></collision>
+      <collision name="post_6"><pose> 0.96 -0.26 1.0 0 0 0</pose><geometry><box><size>0.08 0.08 2.0</size></box></geometry></collision>
+      <visual name="post_1_v"><pose>-0.96  0.26 1.0 0 0 0</pose><geometry><box><size>0.08 0.08 2.0</size></box></geometry><material><ambient>0.10 0.25 0.60 1</ambient><diffuse>0.12 0.30 0.70 1</diffuse></material></visual>
+      <visual name="post_2_v"><pose>-0.96 -0.26 1.0 0 0 0</pose><geometry><box><size>0.08 0.08 2.0</size></box></geometry><material><ambient>0.10 0.25 0.60 1</ambient><diffuse>0.12 0.30 0.70 1</diffuse></material></visual>
+      <visual name="post_3_v"><pose> 0.00  0.26 1.0 0 0 0</pose><geometry><box><size>0.08 0.08 2.0</size></box></geometry><material><ambient>0.10 0.25 0.60 1</ambient><diffuse>0.12 0.30 0.70 1</diffuse></material></visual>
+      <visual name="post_4_v"><pose> 0.00 -0.26 1.0 0 0 0</pose><geometry><box><size>0.08 0.08 2.0</size></box></geometry><material><ambient>0.10 0.25 0.60 1</ambient><diffuse>0.12 0.30 0.70 1</diffuse></material></visual>
+      <visual name="post_5_v"><pose> 0.96  0.26 1.0 0 0 0</pose><geometry><box><size>0.08 0.08 2.0</size></box></geometry><material><ambient>0.10 0.25 0.60 1</ambient><diffuse>0.12 0.30 0.70 1</diffuse></material></visual>
+      <visual name="post_6_v"><pose> 0.96 -0.26 1.0 0 0 0</pose><geometry><box><size>0.08 0.08 2.0</size></box></geometry><material><ambient>0.10 0.25 0.60 1</ambient><diffuse>0.12 0.30 0.70 1</diffuse></material></visual>
+      <!-- Tầng kệ (màu cam) -->
+      <collision name="shelf_1"><pose>0 0 0.15 0 0 0</pose><geometry><box><size>2.0 0.6 0.04</size></box></geometry></collision>
+      <collision name="shelf_2"><pose>0 0 0.75 0 0 0</pose><geometry><box><size>2.0 0.6 0.04</size></box></geometry></collision>
+      <collision name="shelf_3"><pose>0 0 1.35 0 0 0</pose><geometry><box><size>2.0 0.6 0.04</size></box></geometry></collision>
+      <collision name="shelf_4"><pose>0 0 1.95 0 0 0</pose><geometry><box><size>2.0 0.6 0.04</size></box></geometry></collision>
+      <visual name="shelf_1_v"><pose>0 0 0.15 0 0 0</pose><geometry><box><size>2.0 0.6 0.04</size></box></geometry><material><ambient>0.85 0.40 0.05 1</ambient><diffuse>0.95 0.45 0.05 1</diffuse></material></visual>
+      <visual name="shelf_2_v"><pose>0 0 0.75 0 0 0</pose><geometry><box><size>2.0 0.6 0.04</size></box></geometry><material><ambient>0.85 0.40 0.05 1</ambient><diffuse>0.95 0.45 0.05 1</diffuse></material></visual>
+      <visual name="shelf_3_v"><pose>0 0 1.35 0 0 0</pose><geometry><box><size>2.0 0.6 0.04</size></box></geometry><material><ambient>0.85 0.40 0.05 1</ambient><diffuse>0.95 0.45 0.05 1</diffuse></material></visual>
+      <visual name="shelf_4_v"><pose>0 0 1.95 0 0 0</pose><geometry><box><size>2.0 0.6 0.04</size></box></geometry><material><ambient>0.85 0.40 0.05 1</ambient><diffuse>0.95 0.45 0.05 1</diffuse></material></visual>
+      <!-- Thùng hàng trên kệ -->
+      <collision name="goods_1"><pose>-0.5 0 0.37 0 0 0</pose><geometry><box><size>0.40 0.40 0.40</size></box></geometry></collision>
+      <collision name="goods_2"><pose> 0.5 0 0.97 0 0 0</pose><geometry><box><size>0.40 0.40 0.40</size></box></geometry></collision>
+      <collision name="goods_3"><pose>-0.4 0 1.57 0 0 0</pose><geometry><box><size>0.40 0.40 0.40</size></box></geometry></collision>
+      <visual name="goods_1_v"><pose>-0.5 0 0.37 0 0 0</pose><geometry><box><size>0.40 0.40 0.40</size></box></geometry><material><ambient>0.62 0.45 0.27 1</ambient><diffuse>0.72 0.53 0.32 1</diffuse></material></visual>
+      <visual name="goods_2_v"><pose> 0.5 0 0.97 0 0 0</pose><geometry><box><size>0.40 0.40 0.40</size></box></geometry><material><ambient>0.62 0.45 0.27 1</ambient><diffuse>0.72 0.53 0.32 1</diffuse></material></visual>
+      <visual name="goods_3_v"><pose>-0.4 0 1.57 0 0 0</pose><geometry><box><size>0.40 0.40 0.40</size></box></geometry><material><ambient>0.62 0.45 0.27 1</ambient><diffuse>0.72 0.53 0.32 1</diffuse></material></visual>
+    </link>
+  </model>
+</sdf>

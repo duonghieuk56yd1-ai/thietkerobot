@@ -1,0 +1,161 @@
+<?xml version="1.0"?>
+<!-- Nhà kho mô phỏng cho AMR: tường bao, giá kệ, cột, pallet, trạm trao hàng 0.67 m và trạm sạc -->
+<sdf version="1.9">
+  <world name="warehouse">
+    <!-- ===== System plugins (Gazebo Harmonic / gz-sim 8) ===== -->
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu"/>
+    <plugin filename="gz-sim-magnetometer-system" name="gz::sim::systems::Magnetometer"/>
+
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+    <gravity>0 0 -9.81</gravity>
+    <magnetic_field>5.5645e-6 22.8758e-6 -42.3884e-6</magnetic_field>
+    <atmosphere type="adiabatic"/>
+
+    <scene>
+      <ambient>0.6 0.6 0.6 1</ambient>
+      <background>0.75 0.80 0.85 1</background>
+      <shadows>true</shadows>
+      <grid>false</grid>
+    </scene>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.85 0.85 0.85 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal><size>40 40</size></plane></geometry>
+          <surface>
+            <friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>40 40</size></plane></geometry>
+          <material>
+            <ambient>0.55 0.56 0.58 1</ambient>
+            <diffuse>0.62 0.63 0.65 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Tường bao nhà kho 12 × 10 m, cao 2.5 m -->
+    <model name="warehouse_walls">
+      <static>true</static>
+      <link name="link">
+        <collision name="wall_east"><pose>6.075 0 1.25 0 0 0</pose><geometry><box><size>0.15 10.3 2.5</size></box></geometry></collision>
+        <visual name="wall_east_v"><pose>6.075 0 1.25 0 0 0</pose><geometry><box><size>0.15 10.3 2.5</size></box></geometry><material><ambient>0.80 0.80 0.78 1</ambient><diffuse>0.88 0.88 0.86 1</diffuse></material></visual>
+        <collision name="wall_west"><pose>-6.075 0 1.25 0 0 0</pose><geometry><box><size>0.15 10.3 2.5</size></box></geometry></collision>
+        <visual name="wall_west_v"><pose>-6.075 0 1.25 0 0 0</pose><geometry><box><size>0.15 10.3 2.5</size></box></geometry><material><ambient>0.80 0.80 0.78 1</ambient><diffuse>0.88 0.88 0.86 1</diffuse></material></visual>
+        <collision name="wall_north"><pose>0 5.075 1.25 0 0 0</pose><geometry><box><size>12.0 0.15 2.5</size></box></geometry></collision>
+        <visual name="wall_north_v"><pose>0 5.075 1.25 0 0 0</pose><geometry><box><size>12.0 0.15 2.5</size></box></geometry><material><ambient>0.80 0.80 0.78 1</ambient><diffuse>0.88 0.88 0.86 1</diffuse></material></visual>
+        <collision name="wall_south"><pose>0 -5.075 1.25 0 0 0</pose><geometry><box><size>12.0 0.15 2.5</size></box></geometry></collision>
+        <visual name="wall_south_v"><pose>0 -5.075 1.25 0 0 0</pose><geometry><box><size>12.0 0.15 2.5</size></box></geometry><material><ambient>0.80 0.80 0.78 1</ambient><diffuse>0.88 0.88 0.86 1</diffuse></material></visual>
+        <visual name="lane_north_v"><pose>0 1.2 0.001 0 0 0</pose><geometry><box><size>10.0 0.06 0.002</size></box></geometry><material><ambient>0.9 0.75 0.0 1</ambient><diffuse>1.0 0.85 0.0 1</diffuse></material></visual>
+        <visual name="lane_south_v"><pose>0 -1.2 0.001 0 0 0</pose><geometry><box><size>10.0 0.06 0.002</size></box></geometry><material><ambient>0.9 0.75 0.0 1</ambient><diffuse>1.0 0.85 0.0 1</diffuse></material></visual>
+      </link>
+    </model>
+    <!-- Cột nhà xưởng 0.4 × 0.4 m -->
+    <model name="pillars">
+      <static>true</static>
+      <link name="link">
+        <collision name="pillar_1"><pose>2.5 2.0 1.25 0 0 0</pose><geometry><box><size>0.4 0.4 2.5</size></box></geometry></collision>
+        <visual name="pillar_1_v"><pose>2.5 2.0 1.25 0 0 0</pose><geometry><box><size>0.4 0.4 2.5</size></box></geometry><material><ambient>0.55 0.55 0.55 1</ambient><diffuse>0.65 0.65 0.65 1</diffuse></material></visual>
+        <visual name="pillar_1_stripe_v"><pose>2.5 2.0 0.4 0 0 0</pose><geometry><box><size>0.41 0.41 0.3</size></box></geometry><material><ambient>0.9 0.75 0.0 1</ambient><diffuse>1.0 0.85 0.0 1</diffuse></material></visual>
+        <collision name="pillar_2"><pose>2.5 -2.0 1.25 0 0 0</pose><geometry><box><size>0.4 0.4 2.5</size></box></geometry></collision>
+        <visual name="pillar_2_v"><pose>2.5 -2.0 1.25 0 0 0</pose><geometry><box><size>0.4 0.4 2.5</size></box></geometry><material><ambient>0.55 0.55 0.55 1</ambient><diffuse>0.65 0.65 0.65 1</diffuse></material></visual>
+        <visual name="pillar_2_stripe_v"><pose>2.5 -2.0 0.4 0 0 0</pose><geometry><box><size>0.41 0.41 0.3</size></box></geometry><material><ambient>0.9 0.75 0.0 1</ambient><diffuse>1.0 0.85 0.0 1</diffuse></material></visual>
+        <collision name="pillar_3"><pose>-2.0 1.8 1.25 0 0 0</pose><geometry><box><size>0.4 0.4 2.5</size></box></geometry></collision>
+        <visual name="pillar_3_v"><pose>-2.0 1.8 1.25 0 0 0</pose><geometry><box><size>0.4 0.4 2.5</size></box></geometry><material><ambient>0.55 0.55 0.55 1</ambient><diffuse>0.65 0.65 0.65 1</diffuse></material></visual>
+        <visual name="pillar_3_stripe_v"><pose>-2.0 1.8 0.4 0 0 0</pose><geometry><box><size>0.41 0.41 0.3</size></box></geometry><material><ambient>0.9 0.75 0.0 1</ambient><diffuse>1.0 0.85 0.0 1</diffuse></material></visual>
+        <collision name="pillar_4"><pose>-2.0 -1.8 1.25 0 0 0</pose><geometry><box><size>0.4 0.4 2.5</size></box></geometry></collision>
+        <visual name="pillar_4_v"><pose>-2.0 -1.8 1.25 0 0 0</pose><geometry><box><size>0.4 0.4 2.5</size></box></geometry><material><ambient>0.55 0.55 0.55 1</ambient><diffuse>0.65 0.65 0.65 1</diffuse></material></visual>
+        <visual name="pillar_4_stripe_v"><pose>-2.0 -1.8 0.4 0 0 0</pose><geometry><box><size>0.41 0.41 0.3</size></box></geometry><material><ambient>0.9 0.75 0.0 1</ambient><diffuse>1.0 0.85 0.0 1</diffuse></material></visual>
+      </link>
+    </model>
+    <!-- Pallet hàng xếp chồng (chướng ngại vật tĩnh) -->
+    <model name="pallet_stacks">
+      <static>true</static>
+      <link name="link">
+        <collision name="pallet_1"><pose>3.6 3.9 0.075 0 0 0</pose><geometry><box><size>1.2 0.8 0.15</size></box></geometry></collision>
+        <visual name="pallet_1_v"><pose>3.6 3.9 0.075 0 0 0</pose><geometry><box><size>1.2 0.8 0.15</size></box></geometry><material><ambient>0.55 0.40 0.22 1</ambient><diffuse>0.65 0.48 0.28 1</diffuse></material></visual>
+        <collision name="load_1"><pose>3.6 3.9 0.65 0 0 0</pose><geometry><box><size>1.1 0.75 1.0</size></box></geometry></collision>
+        <visual name="load_1_v"><pose>3.6 3.9 0.65 0 0 0</pose><geometry><box><size>1.1 0.75 1.0</size></box></geometry><material><ambient>0.62 0.45 0.27 1</ambient><diffuse>0.72 0.53 0.32 1</diffuse></material></visual>
+        <collision name="pallet_2"><pose>3.6 -3.9 0.075 0 0 0</pose><geometry><box><size>1.2 0.8 0.15</size></box></geometry></collision>
+        <visual name="pallet_2_v"><pose>3.6 -3.9 0.075 0 0 0</pose><geometry><box><size>1.2 0.8 0.15</size></box></geometry><material><ambient>0.55 0.40 0.22 1</ambient><diffuse>0.65 0.48 0.28 1</diffuse></material></visual>
+        <collision name="load_2"><pose>3.6 -3.9 0.65 0 0 0</pose><geometry><box><size>1.1 0.75 1.0</size></box></geometry></collision>
+        <visual name="load_2_v"><pose>3.6 -3.9 0.65 0 0 0</pose><geometry><box><size>1.1 0.75 1.0</size></box></geometry><material><ambient>0.62 0.45 0.27 1</ambient><diffuse>0.72 0.53 0.32 1</diffuse></material></visual>
+        <collision name="pallet_3"><pose>-5.0 -4.3 0.075 0 0 0</pose><geometry><box><size>1.2 0.8 0.15</size></box></geometry></collision>
+        <visual name="pallet_3_v"><pose>-5.0 -4.3 0.075 0 0 0</pose><geometry><box><size>1.2 0.8 0.15</size></box></geometry><material><ambient>0.55 0.40 0.22 1</ambient><diffuse>0.65 0.48 0.28 1</diffuse></material></visual>
+        <collision name="load_3"><pose>-5.0 -4.3 0.65 0 0 0</pose><geometry><box><size>1.1 0.75 1.0</size></box></geometry></collision>
+        <visual name="load_3_v"><pose>-5.0 -4.3 0.65 0 0 0</pose><geometry><box><size>1.1 0.75 1.0</size></box></geometry><material><ambient>0.62 0.45 0.27 1</ambient><diffuse>0.72 0.53 0.32 1</diffuse></material></visual>
+      </link>
+    </model>
+    <include>
+      <uri>model://warehouse_rack</uri>
+      <name>rack_1</name>
+      <pose>-3.4 3.2 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>model://warehouse_rack</uri>
+      <name>rack_2</name>
+      <pose>-1.2 3.2 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>model://warehouse_rack</uri>
+      <name>rack_3</name>
+      <pose>1.0 3.2 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>model://warehouse_rack</uri>
+      <name>rack_4</name>
+      <pose>-3.4 -3.2 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>model://warehouse_rack</uri>
+      <name>rack_5</name>
+      <pose>-1.2 -3.2 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>model://warehouse_rack</uri>
+      <name>rack_6</name>
+      <pose>1.0 -3.2 0 0 0 0</pose>
+    </include>
+    <!-- Trạm trao hàng: mặt con lăn cao 0.67 m. Tâm robot dừng tại x = 3.97 m để trao hàng -->
+    <include>
+      <uri>model://handover_station</uri>
+      <name>handover_station</name>
+      <pose>4.6 0 0 0 0 0</pose>
+    </include>
+    <!-- Trạm sạc sát tường phía tây, tiếp điểm hướng +x -->
+    <include>
+      <uri>model://charging_dock</uri>
+      <name>charging_dock</name>
+      <pose>-5.9 0 0 0 0 0</pose>
+    </include>
+  </world>
+</sdf>
