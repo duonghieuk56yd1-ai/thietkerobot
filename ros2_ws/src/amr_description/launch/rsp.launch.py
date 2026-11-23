@@ -1,4 +1,4 @@
-"""robot_state_publisher cho AMR (dùng chung cho RViz2 độc lập và Gazebo)."""
+"""robot_state_publisher cho robot (dùng chung cho RViz2 độc lập và Gazebo)."""
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
@@ -11,14 +11,18 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_gazebo = LaunchConfiguration('use_gazebo')
+    model = LaunchConfiguration('model')
 
     xacro_file = PathJoinSubstitution(
-        [FindPackageShare('amr_description'), 'urdf', 'amr.urdf.xacro'])
+        [FindPackageShare('amr_description'), 'urdf', [model, '.urdf.xacro']])
     robot_description = ParameterValue(
         Command(['xacro ', xacro_file, ' use_gazebo:=', use_gazebo]),
         value_type=str)
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'model', default_value='amr',
+            description='Robot: amr (nâng + băng tải) | sorter_agv (chia chọn khay lật)'),
         DeclareLaunchArgument(
             'use_sim_time', default_value='false',
             description='Dùng đồng hồ mô phỏng /clock'),

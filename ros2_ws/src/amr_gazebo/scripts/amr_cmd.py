@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
-"""Lệnh nhanh cho cơ cấu nâng và băng tải của AMR.
+"""Lệnh nhanh cho cơ cấu nâng/băng tải của AMR và khay lật của robot chia chọn.
 
     ros2 run amr_gazebo amr_cmd.py lift up          # nâng khay lên 0.25 m (mặt băng 0.67 m)
     ros2 run amr_gazebo amr_cmd.py lift down        # hạ khay về 0.0 m (mặt băng 0.42 m)
     ros2 run amr_gazebo amr_cmd.py lift 0.12        # nâng tới vị trí bất kỳ trong [0, 0.25] m
     ros2 run amr_gazebo amr_cmd.py conveyor 0.2 3   # chạy băng tải 0.2 m/s trong 3 s rồi dừng
     ros2 run amr_gazebo amr_cmd.py conveyor 0       # dừng băng tải
+
+  Robot chia chọn (sorter_agv.launch.py):
+    ros2 run amr_gazebo amr_cmd.py tray left        # lật khay 30° thả hàng sang trái
+    ros2 run amr_gazebo amr_cmd.py tray right       # lật khay 30° thả hàng sang phải
+    ros2 run amr_gazebo amr_cmd.py tray flat        # khay về nằm ngang
+    ros2 run amr_gazebo amr_cmd.py tray -0.3        # góc bất kỳ trong [-0.52, 0.52] rad
 """
 
 import sys
@@ -17,6 +23,7 @@ from std_msgs.msg import Float64
 LIFT_MIN = 0.0
 LIFT_MAX = 0.25
 CONVEYOR_MAX = 0.3
+TILT_MAX = 0.5236  # 30°; góc dương = nâng cạnh trái → hàng đổ sang phải
 
 
 def usage():
@@ -30,6 +37,7 @@ class AmrCmd(Node):
         super().__init__('amr_cmd')
         self.lift_pub = self.create_publisher(Float64, '/lift_cmd', 10)
         self.conveyor_pub = self.create_publisher(Float64, '/conveyor_cmd', 10)
+        self.tray_pub = self.create_publisher(Float64, '/tray_tilt_cmd', 10)
 
     def wait_for_subscriber(self, pub, timeout=3.0):
         """Chờ ros_gz_bridge kết nối để lệnh không bị mất."""
@@ -76,6 +84,18 @@ class AmrCmd(Node):
             self.publish(self.conveyor_pub, 0.0)
             self.get_logger().info('/conveyor_cmd = 0.00 m/s (dừng)')
 
+    def tray(self, arg):
+        presets = {'left': -TILT_MAX, 'right': TILT_MAX, 'flat': 0.0}
+        target = presets[arg] if arg in presets else float(arg)
+        clamped = min(max(target, -TILT_MAX), TILT_MAX)
+        if clamped != target:
+            self.get_logger().warn(
+                f'Giới hạn góc lật [{-TILT_MAX}, {TILT_MAX}] rad: {target} -> {clamped}')
+        self.wait_for_subscriber(self.tray_pub)
+        self.publish(self.tray_pub, clamped)
+        side = 'phải' if clamped > 0 else 'trái' if clamped < 0 else 'nằm ngang'
+        self.get_logger().info(f'/tray_tilt_cmd = {clamped:.3f} rad ({side})')
+
 
 def main():
     argv = rclpy.utilities.remove_ros_args(sys.argv)[1:]
@@ -88,6 +108,8 @@ def main():
             node.lift(argv[1])
         elif argv[0] == 'conveyor':
             node.conveyor(argv[1], argv[2] if len(argv) > 2 else None)
+        elif argv[0] == 'tray':
+            node.tray(argv[1])
         else:
             usage()
     except ValueError:

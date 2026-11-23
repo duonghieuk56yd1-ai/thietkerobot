@@ -1,0 +1,328 @@
+<?xml version="1.0"?>
+<!--
+  Robot AGV chia chọn bưu phẩm kiểu khay lật (tilt-tray sorter), mô phỏng theo dạng robot
+  dùng trong các trung tâm chia chọn (nhận hàng tại bàn nạp, chở tới máng chia, lật khay thả hàng).
+
+  Cơ cấu:
+    - Thân thấp hình chữ nhật bo góc 0.56 × 0.46 × 0.14 m, khoảng sáng gầm 0.025 m (nắp ở z = 0.165 m).
+    - Đế Differential Drive: 2 bánh Ø0.10 m cách nhau 0.36 m + 4 bi tự lựa Ø0.04 m ở 4 góc.
+    - Camera hướng xuống đọc mã QR dán trên sàn (định vị), cửa sổ cảm biến chống va phía trước,
+      dải LED trạng thái trước/sau, nút dừng khẩn và tiếp điểm sạc phía sau.
+    - Khay lật 0.48 × 0.36 m quay quanh trục dọc thân (trục x) ở z = 0.265 m, góc lật ±30°:
+      lật sang trái hoặc phải để thả bưu phẩm xuống máng chia. Chỉ có gờ chặn ở đầu/cuối khay,
+      hai cạnh bên để hở cho hàng trượt xuống.
+  Khối lượng ≈ 18 kg: thân 14.45 + bánh 2×0.8 + bi 4×0.1 + camera 0.05 + khay 1.5.
+
+  Quy ước khớp tray_tilt_joint: góc dương = quay quanh +x = nâng cạnh trái → hàng đổ sang PHẢI (-y).
+-->
+<robot name="sorter_agv" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:arg name="use_gazebo" default="true"/>
+
+  <xacro:include filename="amr_macros.xacro"/>
+
+  <material name="sorter_yellow"><color rgba="1.00 0.78 0.00 1.0"/></material>
+  <material name="sorter_led">   <color rgba="0.00 0.80 1.00 1.0"/></material>
+  <material name="sorter_red">   <color rgba="0.85 0.05 0.05 1.0"/></material>
+
+  <!-- ~~~~~~~~~~ Thông số ~~~~~~~~~~ -->
+  <xacro:property name="body_l"           value="0.56"/>
+  <xacro:property name="body_w"           value="0.46"/>
+  <xacro:property name="body_h"           value="0.14"/>
+  <xacro:property name="body_r"           value="0.06"/>   <!-- bán kính bo góc -->
+  <xacro:property name="clearance"        value="0.025"/>
+  <xacro:property name="base_z"           value="${clearance + body_h / 2.0}"/>   <!-- 0.095 -->
+  <xacro:property name="top"              value="${body_h / 2.0}"/>               <!-- +0.07 so với base_link -->
+  <xacro:property name="chassis_mass"     value="14.45"/>
+
+  <xacro:property name="wheel_radius"     value="0.05"/>
+  <xacro:property name="wheel_width"      value="0.035"/>
+  <xacro:property name="wheel_separation" value="0.36"/>
+  <xacro:property name="wheel_mass"       value="0.8"/>
+
+  <xacro:property name="caster_radius"    value="0.02"/>
+  <xacro:property name="caster_x"         value="0.21"/>
+  <xacro:property name="caster_y"         value="0.16"/>
+  <xacro:property name="caster_clearance" value="0.001"/>
+  <xacro:property name="caster_mass"      value="0.1"/>
+
+  <!-- Khay lật -->
+  <xacro:property name="pivot_height"     value="0.10"/>   <!-- trục lật cao hơn nắp thân -->
+  <xacro:property name="tilt_max"         value="${radians(30)}"/>
+  <xacro:property name="tilt_velocity"    value="2.0"/>    <!-- rad/s -->
+  <xacro:property name="tilt_effort"      value="60.0"/>   <!-- N·m -->
+  <xacro:property name="tray_l"           value="0.48"/>
+  <xacro:property name="tray_w"           value="0.36"/>
+  <xacro:property name="tray_t"           value="0.015"/>
+  <xacro:property name="tray_gap"         value="0.008"/>  <!-- đáy khay cao hơn trục lật -->
+  <xacro:property name="lip_t"            value="0.015"/>
+  <xacro:property name="lip_h"            value="0.035"/>
+  <xacro:property name="tray_mass"        value="1.5"/>
+  <xacro:property name="housing_h"        value="0.075"/>  <!-- hộp cơ cấu chấp hành dưới khay -->
+
+  <!-- Hình chữ nhật bo góc = 2 hộp chéo + 4 trụ ở góc -->
+  <xacro:macro name="rounded_box" params="name l w h r z mat">
+    <visual name="${name}_x">
+      <origin xyz="0 0 ${z}" rpy="0 0 0"/>
+      <geometry><box size="${l} ${w - 2.0 * r} ${h}"/></geometry>
+      <material name="${mat}"/>
+    </visual>
+    <visual name="${name}_y">
+      <origin xyz="0 0 ${z}" rpy="0 0 0"/>
+      <geometry><box size="${l - 2.0 * r} ${w} ${h}"/></geometry>
+      <material name="${mat}"/>
+    </visual>
+    <xacro:rounded_corner name="${name}_c1" x="${ l / 2.0 - r}" y="${ w / 2.0 - r}" h="${h}" r="${r}" z="${z}" mat="${mat}"/>
+    <xacro:rounded_corner name="${name}_c2" x="${ l / 2.0 - r}" y="${-w / 2.0 + r}" h="${h}" r="${r}" z="${z}" mat="${mat}"/>
+    <xacro:rounded_corner name="${name}_c3" x="${-l / 2.0 + r}" y="${ w / 2.0 - r}" h="${h}" r="${r}" z="${z}" mat="${mat}"/>
+    <xacro:rounded_corner name="${name}_c4" x="${-l / 2.0 + r}" y="${-w / 2.0 + r}" h="${h}" r="${r}" z="${z}" mat="${mat}"/>
+  </xacro:macro>
+  <xacro:macro name="rounded_corner" params="name x y h r z mat">
+    <visual name="${name}">
+      <origin xyz="${x} ${y} ${z}" rpy="0 0 0"/>
+      <geometry><cylinder radius="${r}" length="${h}"/></geometry>
+      <material name="${mat}"/>
+    </visual>
+  </xacro:macro>
+
+  <!-- ~~~~~~~~~~ Thân ~~~~~~~~~~ -->
+  <link name="base_footprint"/>
+
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 ${base_z}" rpy="0 0 0"/>
+  </joint>
+
+  <link name="base_link">
+    <!-- Vỏ thân màu vàng -->
+    <xacro:rounded_box name="shell" l="${body_l}" w="${body_w}" h="${body_h}" r="${body_r}" z="0" mat="sorter_yellow"/>
+    <!-- Cản va cao su quanh mép dưới -->
+    <!-- đáy cản va thấp hơn đáy vỏ 0.5 mm để hai mặt không trùng nhau khi hiển thị -->
+    <xacro:rounded_box name="bumper" l="${body_l + 0.008}" w="${body_w + 0.008}" h="0.036"
+                       r="${body_r + 0.004}" z="${-top + 0.0175}" mat="amr_rubber"/>
+    <!-- Nắp trên màu tối -->
+    <xacro:rounded_box name="cover" l="${body_l - 0.02}" w="${body_w - 0.02}" h="0.004"
+                       r="${body_r - 0.01}" z="${top + 0.002}" mat="amr_dark"/>
+
+    <!-- Hộp cơ cấu chấp hành (động cơ + hộp số lật khay) dưới khay -->
+    <visual name="actuator_housing">
+      <origin xyz="0 0 ${top + housing_h / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="0.40 0.08 ${housing_h}"/></geometry>
+      <material name="amr_dark"/>
+    </visual>
+    <visual name="gear_motor">
+      <origin xyz="0.225 0 ${top + housing_h / 2.0}" rpy="0 ${pi / 2.0} 0"/>
+      <geometry><cylinder radius="0.025" length="0.05"/></geometry>
+      <material name="amr_alu"/>
+    </visual>
+    <!-- Tai đỡ + trục lật (cố định trên thân) -->
+    <visual name="hinge_lug_front">
+      <origin xyz="0.19 0 ${top + housing_h + (pivot_height - housing_h) / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="0.012 0.03 ${pivot_height - housing_h + 0.01}"/></geometry>
+      <material name="amr_alu"/>
+    </visual>
+    <visual name="hinge_lug_rear">
+      <origin xyz="-0.19 0 ${top + housing_h + (pivot_height - housing_h) / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="0.012 0.03 ${pivot_height - housing_h + 0.01}"/></geometry>
+      <material name="amr_alu"/>
+    </visual>
+    <visual name="hinge_shaft">
+      <origin xyz="0 0 ${top + pivot_height}" rpy="0 ${pi / 2.0} 0"/>
+      <geometry><cylinder radius="0.008" length="0.42"/></geometry>
+      <material name="amr_chrome"/>
+    </visual>
+
+    <!-- Dải LED trạng thái trước / sau -->
+    <visual name="led_front">
+      <origin xyz="${body_l / 2.0 + 0.002} 0 ${top - 0.025}" rpy="0 0 0"/>
+      <geometry><box size="0.004 0.30 0.012"/></geometry>
+      <material name="sorter_led"/>
+    </visual>
+    <visual name="led_rear">
+      <origin xyz="${-body_l / 2.0 - 0.002} -0.03 ${top - 0.025}" rpy="0 0 0"/>
+      <geometry><box size="0.004 0.24 0.012"/></geometry>
+      <material name="sorter_led"/>
+    </visual>
+    <!-- Cửa sổ cảm biến chống va phía trước -->
+    <visual name="front_sensor_window">
+      <origin xyz="${body_l / 2.0 + 0.002} 0 0.005" rpy="0 0 0"/>
+      <geometry><box size="0.004 0.10 0.025"/></geometry>
+      <material name="amr_black"/>
+    </visual>
+    <!-- Nút dừng khẩn phía sau -->
+    <visual name="estop">
+      <origin xyz="${-body_l / 2.0 - 0.006} 0.16 ${top - 0.025}" rpy="0 ${pi / 2.0} 0"/>
+      <geometry><cylinder radius="0.015" length="0.012"/></geometry>
+      <material name="sorter_red"/>
+    </visual>
+    <!-- Tiếp điểm sạc phía sau -->
+    <visual name="charge_contact_left">
+      <origin xyz="${-body_l / 2.0 - 0.003} 0.08 -0.02" rpy="0 0 0"/>
+      <geometry><box size="0.006 0.06 0.02"/></geometry>
+      <material name="amr_copper"/>
+    </visual>
+    <visual name="charge_contact_right">
+      <origin xyz="${-body_l / 2.0 - 0.003} -0.08 -0.02" rpy="0 0 0"/>
+      <geometry><box size="0.006 0.06 0.02"/></geometry>
+      <material name="amr_copper"/>
+    </visual>
+
+    <collision name="body_collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="${body_l} ${body_w} ${body_h}"/></geometry>
+    </collision>
+    <collision name="housing_collision">
+      <origin xyz="0 0 ${top + housing_h / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="0.40 0.08 ${housing_h}"/></geometry>
+    </collision>
+
+    <xacro:inertial_box mass="${chassis_mass}" x="${body_l}" y="${body_w}" z="${body_h}">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:inertial_box>
+  </link>
+
+  <!-- ~~~~~~~~~~ Bánh chủ động ~~~~~~~~~~ -->
+  <xacro:macro name="drive_wheel" params="side y_sign">
+    <link name="${side}_wheel_link">
+      <visual name="tire">
+        <origin xyz="0 0 0" rpy="${pi / 2.0} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+        <material name="amr_rubber"/>
+      </visual>
+      <visual name="hub">
+        <origin xyz="0 ${y_sign * 0.001} 0" rpy="${pi / 2.0} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius * 0.5}" length="${wheel_width + 0.002}"/></geometry>
+        <material name="amr_alu"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${pi / 2.0} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+      </collision>
+      <xacro:inertial_cylinder mass="${wheel_mass}" radius="${wheel_radius}" length="${wheel_width}">
+        <origin xyz="0 0 0" rpy="${pi / 2.0} 0 0"/>
+      </xacro:inertial_cylinder>
+    </link>
+
+    <joint name="${side}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${side}_wheel_link"/>
+      <origin xyz="0 ${y_sign * wheel_separation / 2.0} ${wheel_radius - base_z}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="10.0" velocity="45.0"/>
+      <dynamics damping="0.01" friction="0.0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:drive_wheel side="left"  y_sign="1"/>
+  <xacro:drive_wheel side="right" y_sign="-1"/>
+
+  <!-- ~~~~~~~~~~ 4 bi tự lựa ở góc ~~~~~~~~~~ -->
+  <xacro:macro name="caster" params="name x y">
+    <link name="caster_${name}_link">
+      <visual>
+        <geometry><sphere radius="${caster_radius}"/></geometry>
+        <material name="amr_alu"/>
+      </visual>
+      <collision>
+        <geometry><sphere radius="${caster_radius}"/></geometry>
+      </collision>
+      <xacro:inertial_sphere mass="${caster_mass}" radius="${caster_radius}">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+      </xacro:inertial_sphere>
+    </link>
+    <joint name="caster_${name}_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="caster_${name}_link"/>
+      <origin xyz="${x} ${y} ${caster_radius + caster_clearance - base_z}" rpy="0 0 0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:caster name="fl" x="${ caster_x}" y="${ caster_y}"/>
+  <xacro:caster name="fr" x="${ caster_x}" y="${-caster_y}"/>
+  <xacro:caster name="rl" x="${-caster_x}" y="${ caster_y}"/>
+  <xacro:caster name="rr" x="${-caster_x}" y="${-caster_y}"/>
+
+  <!-- ~~~~~~~~~~ Camera đọc mã QR dưới sàn ~~~~~~~~~~ -->
+  <!-- Gắn ở đáy thân, nhìn thẳng xuống sàn (trục quang học là -z của link). -->
+  <link name="qr_camera_link">
+    <visual name="lens">
+      <geometry><cylinder radius="0.018" length="0.006"/></geometry>
+      <material name="amr_black"/>
+    </visual>
+    <visual name="light_ring">
+      <origin xyz="0 0 0.001" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.03" length="0.004"/></geometry>
+      <material name="amr_white"/>
+    </visual>
+    <xacro:inertial_cylinder mass="0.05" radius="0.018" length="0.006">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:inertial_cylinder>
+  </link>
+
+  <joint name="qr_camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="qr_camera_link"/>
+    <origin xyz="0 0 ${-top - 0.003}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ~~~~~~~~~~ Khay lật ~~~~~~~~~~ -->
+  <link name="tilt_tray_link">
+    <visual name="plate">
+      <origin xyz="0 0 ${tray_gap + tray_t / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${tray_l} ${tray_w} ${tray_t}"/></geometry>
+      <material name="amr_dark"/>
+    </visual>
+    <visual name="lip_front">
+      <origin xyz="${tray_l / 2.0 - lip_t / 2.0} 0 ${tray_gap + lip_h / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${lip_t + 0.002} ${tray_w + 0.002} ${lip_h}"/></geometry>
+      <material name="sorter_yellow"/>
+    </visual>
+    <visual name="lip_rear">
+      <origin xyz="${-(tray_l / 2.0 - lip_t / 2.0)} 0 ${tray_gap + lip_h / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${lip_t + 0.002} ${tray_w + 0.002} ${lip_h}"/></geometry>
+      <material name="sorter_yellow"/>
+    </visual>
+    <visual name="tray_lug_front">
+      <origin xyz="0.16 0 ${tray_gap / 2.0 - 0.003}" rpy="0 0 0"/>
+      <geometry><box size="0.012 0.03 ${tray_gap + 0.006}"/></geometry>
+      <material name="amr_alu"/>
+    </visual>
+    <visual name="tray_lug_rear">
+      <origin xyz="-0.16 0 ${tray_gap / 2.0 - 0.003}" rpy="0 0 0"/>
+      <geometry><box size="0.012 0.03 ${tray_gap + 0.006}"/></geometry>
+      <material name="amr_alu"/>
+    </visual>
+
+    <collision name="plate_collision">
+      <origin xyz="0 0 ${tray_gap + tray_t / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${tray_l} ${tray_w} ${tray_t}"/></geometry>
+    </collision>
+    <collision name="lip_front_collision">
+      <origin xyz="${tray_l / 2.0 - lip_t / 2.0} 0 ${tray_gap + lip_h / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${lip_t} ${tray_w} ${lip_h}"/></geometry>
+    </collision>
+    <collision name="lip_rear_collision">
+      <origin xyz="${-(tray_l / 2.0 - lip_t / 2.0)} 0 ${tray_gap + lip_h / 2.0}" rpy="0 0 0"/>
+      <geometry><box size="${lip_t} ${tray_w} ${lip_h}"/></geometry>
+    </collision>
+
+    <xacro:inertial_box mass="${tray_mass}" x="${tray_l}" y="${tray_w}" z="${tray_t}">
+      <origin xyz="0 0 ${tray_gap + tray_t / 2.0}" rpy="0 0 0"/>
+    </xacro:inertial_box>
+  </link>
+
+  <joint name="tray_tilt_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="tilt_tray_link"/>
+    <origin xyz="0 0 ${top + pivot_height}" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="${-tilt_max}" upper="${tilt_max}" effort="${tilt_effort}" velocity="${tilt_velocity}"/>
+    <dynamics damping="0.1" friction="0.0"/>
+  </joint>
+
+  <xacro:if value="$(arg use_gazebo)">
+    <xacro:include filename="sorter_agv.gazebo.xacro"/>
+  </xacro:if>
+
+</robot>

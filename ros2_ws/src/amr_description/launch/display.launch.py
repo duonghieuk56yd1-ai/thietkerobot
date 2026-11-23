@@ -1,6 +1,7 @@
-"""Hiển thị độc lập AMR trên RViz2 (không cần Gazebo).
+"""Hiển thị độc lập robot trên RViz2 (không cần Gazebo).
 
-    ros2 launch amr_description display.launch.py            # có thanh trượt khớp
+    ros2 launch amr_description display.launch.py                    # AMR nâng + băng tải
+    ros2 launch amr_description display.launch.py model:=sorter_agv  # AGV chia chọn khay lật
     ros2 launch amr_description display.launch.py gui:=false
 """
 
@@ -16,12 +17,14 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     pkg = FindPackageShare('amr_description')
     gui = LaunchConfiguration('gui')
+    model = LaunchConfiguration('model')
     rviz_config = LaunchConfiguration('rviz_config')
 
     rsp = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([pkg, 'launch', 'rsp.launch.py'])),
-        launch_arguments={'use_sim_time': 'false', 'use_gazebo': 'false'}.items(),
+        launch_arguments={
+            'model': model, 'use_sim_time': 'false', 'use_gazebo': 'false'}.items(),
     )
 
     jsp_gui = Node(
@@ -47,8 +50,11 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument(
+            'model', default_value='amr',
+            description='Robot: amr (nâng + băng tải) | sorter_agv (chia chọn khay lật)'),
+        DeclareLaunchArgument(
             'gui', default_value='true',
-            description='Mở joint_state_publisher_gui để kéo thử bánh xe / trụ nâng'),
+            description='Mở joint_state_publisher_gui để kéo thử các khớp (bánh xe, trụ nâng, khay lật)'),
         DeclareLaunchArgument(
             'rviz_config',
             default_value=PathJoinSubstitution([pkg, 'rviz', 'display.rviz']),

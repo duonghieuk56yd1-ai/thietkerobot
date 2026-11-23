@@ -1,7 +1,9 @@
 # thietkerobot — AMR vận chuyển hàng trong kho (ROS 2 Humble + Gazebo Harmonic)
 
-Workspace `ros2_ws/` mô phỏng độc lập robot AMR (đế Differential Drive + cơ cấu nâng 4 trụ + khay băng tải)
-trên **Gazebo Harmonic (`gz-sim` 8)** và **RViz2**.
+Workspace `ros2_ws/` mô phỏng độc lập trên **Gazebo Harmonic (`gz-sim` 8)** và **RViz2** hai robot:
+
+- `amr`: robot AMR nâng hàng (đế Differential Drive + cơ cấu nâng 4 trụ + khay băng tải), xem mục 1–4.
+- `sorter_agv`: robot AGV chia chọn bưu phẩm kiểu khay lật, xem mục 5.
 
 ```
 ros2_ws/src
@@ -9,15 +11,16 @@ ros2_ws/src
 │   ├── urdf/amr.urdf.xacro     # Hình học, khớp, khối lượng (file chính)
 │   ├── urdf/amr.gazebo.xacro   # Plugin gz-sim + cảm biến (được include khi use_gazebo:=true)
 │   ├── urdf/amr_macros.xacro   # Macro quán tính + bảng màu
+│   ├── urdf/sorter_agv.urdf.xacro, sorter_agv.gazebo.xacro   # Robot chia chọn khay lật
 │   ├── launch/display.launch.py, rsp.launch.py
 │   └── rviz/display.rviz
 └── amr_gazebo/                 # Mô phỏng
-    ├── launch/amr_gazebo.launch.py
+    ├── launch/amr_gazebo.launch.py, sorter_agv.launch.py
     ├── worlds/warehouse.sdf, empty.sdf
-    ├── models/cargo_box, warehouse_rack, handover_station, charging_dock
-    ├── config/ros_gz_bridge.yaml
+    ├── models/cargo_box, parcel, warehouse_rack, handover_station, charging_dock
+    ├── config/ros_gz_bridge.yaml, sorter_bridge.yaml
     ├── rviz/amr_gazebo.rviz
-    └── scripts/amr_cmd.py      # Lệnh nhanh: nâng/hạ khay, chạy băng tải
+    └── scripts/amr_cmd.py      # Lệnh nhanh: nâng/hạ khay, chạy băng tải, lật khay chia chọn
 ```
 
 ## 1. Cài đặt
@@ -136,6 +139,49 @@ Ngoài ra `/clock` được bridge để mọi node dùng `use_sim_time`.
 - Màu sắc lấy từ `<material>` trong URDF, hiển thị trên cả RViz2 và Gazebo.
 - Khi chạy world trực tiếp bằng `gz sim` (không qua launch), cần thêm
   `amr_gazebo/models` vào `GZ_SIM_RESOURCE_PATH`.
+
+## 5. Robot chia chọn khay lật (`sorter_agv`)
+
+Mô phỏng dạng robot AGV dùng trong trung tâm chia chọn bưu phẩm: robot nhận hàng ở bàn nạp, chở tới
+máng chia rồi lật khay thả hàng xuống. Ở đây chỉ có **một robot để xem cơ cấu**, không có kịch bản đi lấy
+hay trả hàng trong world.
+
+Xem trên RViz2, kéo thanh trượt `tray_tilt_joint` để lật khay:
+
+```bash
+ros2 launch amr_description display.launch.py model:=sorter_agv
+```
+
+Xem trên Gazebo (world trống, một bưu phẩm 1.5 kg đặt sẵn trên khay):
+
+```bash
+ros2 launch amr_gazebo sorter_agv.launch.py
+```
+
+```bash
+ros2 run amr_gazebo amr_cmd.py tray right
+```
+
+```bash
+ros2 run amr_gazebo amr_cmd.py tray flat
+```
+
+| Hạng mục | Giá trị trong mô hình (tự chọn, không lấy từ thông số hãng) |
+|---|---|
+| Thân | Hộp bo góc 0.56 × 0.46 × 0.14 m, màu vàng, khoảng sáng gầm 0.025 m, cản va cao su quanh mép dưới |
+| Di chuyển | Differential Drive: 2 bánh Ø0.10 m cách nhau 0.36 m, 4 bi tự lựa Ø0.04 m ở 4 góc; ≤ 2.0 m/s, ≤ 1.0 m/s² |
+| Định vị | Camera đáy thân nhìn xuống đọc mã QR dán trên sàn (chỉ có hình, chưa gắn cảm biến) |
+| Khay lật | 0.48 × 0.36 m, gờ chặn đầu/cuối, hai cạnh bên để hở; khớp `revolute` `tray_tilt_joint` quanh trục dọc thân ở z = 0.265 m, ±30°, tối đa 2 rad/s; mặt khay z ≈ 0.29 m |
+| Phụ kiện | Dải LED trạng thái trước/sau, cửa sổ cảm biến chống va phía trước, nút dừng khẩn và tiếp điểm sạc phía sau |
+| Khối lượng | ≈ 18 kg (thân 14.45 + bánh 2×0.8 + bi 4×0.1 + camera 0.05 + khay 1.5) |
+
+Vẽ lại robot này trong FreeCAD từng bước: xem [`cad/sorter_agv/HUONG_DAN_FREECAD.md`](cad/sorter_agv/HUONG_DAN_FREECAD.md)
+(kèm macro dựng tự động `cad/sorter_agv/sorter_agv.FCMacro`).
+
+Topic: `/cmd_vel`, `/odom`, `/tf`, `/joint_states`, `/tray_tilt_cmd` (`std_msgs/Float64`, rad).
+Góc dương nâng cạnh trái nên hàng đổ sang **phải**; `amr_cmd.py tray left|right` đã đổi dấu sẵn.
+Mặt khay có µ = 0.3, nên khi lật 30° (tan 30° ≈ 0.58) bưu phẩm trượt xuống, còn khi chạy với gia tốc
+1 m/s² thì hàng vẫn nằm yên.
 
 ---
 
