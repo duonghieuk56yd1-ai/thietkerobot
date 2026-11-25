@@ -1,0 +1,152 @@
+# -*- coding: utf-8 -*-
+"""Tách rời (exploded view) robot sorter_agv đang mở trong FreeCAD.
+
+Cách chạy: FreeCAD → Macro → Macros... → chọn file này → Execute.
+    - Lần 1: tách các chi tiết ra xa nhau.
+    - Lần 2: gom về vị trí ban đầu (bấm Execute lần nữa).
+
+Tìm chi tiết theo Label (không phân biệt hoa/thường), nên dùng được cho cả file
+bạn dựng tay lẫn file do sorter_agv.FCMacro tạo ra. Chi tiết nào không thấy sẽ bị bỏ qua.
+
+Chỉnh khoảng cách: sửa KHOANG (mm), hoặc gọi trong Python console:
+    no_ra(120)   # tách xa hơn
+    gom()        # gom lại
+"""
+
+import FreeCAD as App
+
+KHOANG = 80.0  # mm, một "bậc" tách
+
+# Label (viết thường) -> (hệ số X, hệ số Y, hệ số Z); độ dời = hệ số * KHOANG
+BANG = {
+    # đáy
+    "can_va": (0, 0, -0.5),
+    "camera_qr": (0, 0, -1.8),
+    "vong_den_qr": (0, 0, -1.2),
+    "bi_truoc_trai": (0.5, 0.5, -1.2),
+    "bi_truoc_phai": (0.5, -0.5, -1.2),
+    "bi_sau_trai": (-0.5, 0.5, -1.2),
+    "bi_sau_phai": (-0.5, -0.5, -1.2),
+    # bánh: lốp ra ngoài, moay-ơ ra xa hơn
+    "banh_trai": (0, 1.5, 0),
+    "banh_phai": (0, -1.5, 0),
+    "may_banh_trai": (0, 2.2, 0),
+    "may_banh_phai": (0, -2.2, 0),
+    # phía trên thân
+    "nap": (0, 0, 1),
+    "hop_co_cau": (0, 0, 2),
+    "dong_co": (1, 0, 2),
+    "tai_do_truoc": (0, 0, 3),
+    "tai_do_sau": (0, 0, 3),
+    "truc_lat": (0, 0, 3),
+    # phụ kiện mặt trước / sau
+    "led_truoc": (1, 0, 0),
+    "cua_so_cam_bien": (1, 0, 0),
+    "led_sau": (-1, 0, 0),
+    "nut_dung_khan": (-1, 0, 0),
+    "tiep_diem_sac_trai": (-1, 0, 0),
+    "tiep_diem_sac_phai": (-1, 0, 0),
+}
+
+# Khay lật: nếu có nhóm "Khay_lat" thì dời cả nhóm, nếu không thì dời từng chi tiết
+NHOM_KHAY = "khay_lat"
+HE_SO_KHAY = (0, 0, 4.5)
+CHI_TIET_KHAY = ["mat_khay", "go_chan_truoc", "go_chan_sau",
+                 "tai_khay_truoc", "tai_khay_sau"]
+
+TEN_THUOC_TINH = "PlacementGoc"
+
+
+def _tim(doc):
+    """Label (thường) -> đối tượng."""
+    d = {}
+    for o in doc.Objects:
+        d.setdefault(o.Label.strip().lower(), o)
+    return d
+
+
+def _can_dich(obj, ket_qua):
+    """Fillet dời hộp gốc; Cut dời cả khối bị khoét lẫn mũi khoan (để lỗ không bị lệch)."""
+    t = obj.TypeId
+    if t == "Part::Fillet" and obj.Base is not None:
+        _can_dich(obj.Base, ket_qua)
+    elif t == "Part::Cut":
+        if obj.Base is not None:
+            _can_dich(obj.Base, ket_qua)
+        if obj.Tool is not None:
+            _can_dich(obj.Tool, ket_qua)
+    else:
+        ket_qua[obj.Name] = obj
+    return ket_qua
+
+
+def _luu_goc(o):
+    if not hasattr(o, TEN_THUOC_TINH):
+        o.addProperty("App::PropertyPlacement", TEN_THUOC_TINH, "Explode",
+                      "Vị trí gốc trước khi tách")
+        setattr(o, TEN_THUOC_TINH, o.Placement)
+
+
+def _muc_tieu(doc):
+    """Trả về (danh sách (đối tượng, vector dời), danh sách label không tìm thấy)."""
+    tim = _tim(doc)
+    bang = dict(BANG)
+    if NHOM_KHAY in tim:
+        bang[NHOM_KHAY] = HE_SO_KHAY
+    else:
+        for ten in CHI_TIET_KHAY:
+            bang[ten] = HE_SO_KHAY
+
+    muc_tieu, thieu = [], []
+    for ten, (hx, hy, hz) in bang.items():
+        if ten not in tim:
+            if ten != NHOM_KHAY:
+                thieu.append(ten)
+            continue
+        for o in _can_dich(tim[ten], {}).values():
+            muc_tieu.append((o, (hx, hy, hz)))
+    return muc_tieu, thieu
+
+
+def dang_no():
+    doc = App.ActiveDocument
+    return any(hasattr(o, TEN_THUOC_TINH) and o.Placement != getattr(o, TEN_THUOC_TINH)
+               for o in doc.Objects)
+
+
+def no_ra(khoang=KHOANG):
+    doc = App.ActiveDocument
+    muc_tieu, thieu = _muc_tieu(doc)
+    for o, (hx, hy, hz) in muc_tieu:
+        _luu_goc(o)
+        p = App.Placement(getattr(o, TEN_THUOC_TINH))
+        p.Base = p.Base + App.Vector(hx * khoang, hy * khoang, hz * khoang)
+        o.Placement = p
+    doc.recompute()
+    if thieu:
+        App.Console.PrintWarning("Không thấy Label: %s\n" % ", ".join(thieu))
+    _fit()
+
+
+def gom():
+    doc = App.ActiveDocument
+    for o in doc.Objects:
+        if hasattr(o, TEN_THUOC_TINH):
+            o.Placement = getattr(o, TEN_THUOC_TINH)
+    doc.recompute()
+    _fit()
+
+
+def _fit():
+    if App.GuiUp:
+        import FreeCADGui as Gui
+        Gui.activeDocument().activeView().viewIsometric()
+        Gui.SendMsgToActiveView("ViewFit")
+
+
+if App.ActiveDocument is None:
+    App.Console.PrintError("Chưa mở file nào.\n")
+elif dang_no():
+    gom()
+else:
+    no_ra()
