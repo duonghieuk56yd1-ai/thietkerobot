@@ -37,6 +37,7 @@ from std_msgs.msg import Empty  # noqa: E402
 PROGRESS_PERIOD_S = 5.0
 RESET_WAIT_TIMEOUT_S = 30.0
 NO_DATA_WARN_S = 3.0
+MIN_DIST_FOR_DRIFT_M = 0.05      # quãng đường nhỏ hơn mức này thì không tính drift (robot đứng yên)
 ODOM2_CACHE = 300                # số mẫu /odom giữ lại để ghép đúng stamp
 
 CSV_HEADER = ['t_s', 'ex_m', 'ey_m', 'e_pos_m', 'e_yaw_deg',
@@ -171,6 +172,8 @@ class ErrorMonitor(Node):
         r = self.rows[-1]
         print(f'{len(self.rows)} mẫu | t={r[0]:.1f}s | |e|={r[3]:.3f} m | e_yaw={r[4]:.2f}°',
               flush=True)
+        print(f'   odom2 (Gazebo): x={r[5]:.3f} y={r[6]:.3f} yaw={math.degrees(r[7]):.1f}°', flush=True)
+        print(f'   odom1 (ESP32) : x={r[8]:.3f} y={r[9]:.3f} yaw={math.degrees(r[10]):.1f}°', flush=True)
 
 
 # ---------------------------------------------------------------------- report
@@ -188,7 +191,7 @@ def analyze_and_save(rows, out_base):
     i_max = int(np.argmax(e_pos))
     e_final = float(e_pos[-1])
     dist2 = float(np.sum(np.hypot(np.diff(x2), np.diff(y2)))) if n > 1 else 0.0
-    drift = (e_final / dist2 * 100.0) if dist2 > 1e-6 else float('nan')
+    drift = (e_final / dist2 * 100.0) if dist2 > MIN_DIST_FOR_DRIFT_M else float('nan')
     rmse_yaw = float(np.sqrt(np.mean(e_yaw ** 2)))
     i_ymax = int(np.argmax(np.abs(e_yaw)))
 
@@ -203,7 +206,7 @@ def analyze_and_save(rows, out_base):
     print(f'  Sai số vị trí max       : {e_pos[i_max]:.4f} m  (t = {t[i_max]:.1f} s)')
     print(f'  Sai số vị trí cuối      : {e_final:.4f} m')
     if math.isnan(drift):
-        print('  Drift                   : N/A (robot chưa di chuyển)')
+        print('  Drift                   : N/A (robot chưa di chuyển, quãng đường < 0.05 m)')
     else:
         print(f'  Drift                   : {drift:.2f} %  (sai số cuối / quãng đường)')
     print(f'  RMSE góc                : {rmse_yaw:.2f} °')
